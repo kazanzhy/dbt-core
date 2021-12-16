@@ -1,12 +1,11 @@
-
+from dbt.adapters.reference_keys import _ReferenceKey
 from dbt.events.test_types import UnitTestInfo
-from argparse import Namespace
 from dbt.events import AdapterLogger
 from dbt.events.functions import event_to_serializable_dict
+from dbt.events.base_types import NodeInfo
 from dbt.events.types import *
 from dbt.events.test_types import *
-from dbt.events.base_types import Event
-from dbt.events.stubs import _CachedRelation, BaseRelation, _ReferenceKey, ParsedModelNode
+from dbt.events.base_types import Event, TestLevel, DebugLevel, WarnLevel, InfoLevel, ErrorLevel
 from importlib import reload
 import dbt.events.functions as event_funcs
 import dbt.flags as flags
@@ -22,6 +21,8 @@ from dbt.contracts.files import FileHash
 def get_all_subclasses(cls):
     all_subclasses = []
     for subclass in cls.__subclasses__():
+        if subclass in [NodeInfo, AdapterEventBase, TestLevel, DebugLevel, WarnLevel, InfoLevel, ErrorLevel]:
+            continue
         all_subclasses.append(subclass)
         all_subclasses.extend(get_all_subclasses(subclass))
     return set(all_subclasses)
@@ -97,17 +98,21 @@ class TestEventBuffer(TestCase):
     def test_buffer_populates(self):
         event_funcs.fire_event(UnitTestInfo(msg="Test Event 1"))
         event_funcs.fire_event(UnitTestInfo(msg="Test Event 2"))
+        event1 = event_funcs.EVENT_HISTORY[-2]
         self.assertTrue(
-            event_funcs.EVENT_HISTORY.count(UnitTestInfo(msg='Test Event 1', code='T006')) == 1
+            event_funcs.EVENT_HISTORY.count(event1) == 1
         )
 
     # ensure events drop from the front of the buffer when buffer maxsize is reached
     def test_buffer_FIFOs(self):
-        for n in range(0,(flags.EVENT_BUFFER_SIZE + 1)):
+        event_funcs.EVENT_HISTORY.clear()
+        for n in range(1,(flags.EVENT_BUFFER_SIZE + 1)):
             event_funcs.fire_event(UnitTestInfo(msg=f"Test Event {n}"))
         
+        event_full = event_funcs.EVENT_HISTORY[-1]
+        self.assertEqual(event_full.code, 'Z048')
         self.assertTrue(
-            event_funcs.EVENT_HISTORY.count(EventBufferFull(code='Z048')) == 1
+            event_funcs.EVENT_HISTORY.count(event_full) == 1
         )
         self.assertTrue(
              event_funcs.EVENT_HISTORY.count(UnitTestInfo(msg='Test Event 1', code='T006')) == 0
@@ -149,11 +154,11 @@ def MockNode():
 
 
 sample_values = [
-    MainReportVersion(''),
+    MainReportVersion(),
     MainKeyboardInterrupt(),
-    MainEncounteredError(BaseException('')),
-    MainStackTrace(''),
-    MainTrackingUserState(''),
+    MainEncounteredError(e=str(BaseException(''))),
+    MainStackTrace(),
+    MainTrackingUserState(),
     ParsingStart(),
     ParsingCompiling(),
     ParsingWritingManifest(),
@@ -172,12 +177,12 @@ sample_values = [
     GitProgressUpdatedCheckoutRange(start_sha="", end_sha=""),
     GitProgressCheckedOutAt(end_sha=""),
     SystemErrorRetrievingModTime(path=""),
-    SystemCouldNotWrite(path="", reason="", exc=Exception("")),
+    SystemCouldNotWrite(path="", reason="", exc=""),
     SystemExecutingCmd(cmd=[""]),
     SystemStdOutMsg(bmsg=b""),
     SystemStdErrMsg(bmsg=b""),
     SelectorReportInvalidSelector(
-        selector_methods={"": ""}, spec_method="", raw_spec=""
+        valid_selectors="", spec_method="", raw_spec=""
     ),
     MacroEventInfo(msg=""),
     MacroEventDebug(msg=""),
@@ -195,7 +200,10 @@ sample_values = [
     SQLQuery(conn_name="", sql=""),
     SQLQueryStatus(status="", elapsed=0.1),
     SQLCommit(conn_name=""),
-    ColTypeChange(orig_type="", new_type="", table=""),
+    ColTypeChange(
+        orig_type="", new_type="",
+        table=_ReferenceKey(database="", schema="", identifier=""),
+    ),
     SchemaCreation(relation=_ReferenceKey(database="", schema="", identifier="")),
     SchemaDrop(relation=_ReferenceKey(database="", schema="", identifier="")),
     UncachedRelation(
@@ -222,18 +230,18 @@ sample_values = [
         old_key=_ReferenceKey(database="", schema="", identifier=""),
         new_key=_ReferenceKey(database="", schema="", identifier="")
     ),
-    DumpBeforeAddGraph(dict()),
-    DumpAfterAddGraph(dict()),
-    DumpBeforeRenameSchema(dict()),
-    DumpAfterRenameSchema(dict()),
-    AdapterImportError(ModuleNotFoundError()),
+    DumpBeforeAddGraph(dump=dict()),
+    DumpAfterAddGraph(dump=dict()),
+    DumpBeforeRenameSchema(dump=dict()),
+    DumpAfterRenameSchema(dump=dict()),
+    AdapterImportError(exc=str(ModuleNotFoundError())),
     PluginLoadError(),
     SystemReportReturnCode(returncode=0),
     NewConnectionOpening(connection_state=''),
     TimingInfoCollected(),
     MergedFromState(nbr_merged=0, sample=[]),
     MissingProfileTarget(profile_name='', target_name=''),
-    ProfileLoadError(exc=Exception('')),
+    ProfileLoadError(),
     ProfileNotFound(profile_name=''),
     InvalidVarsYAML(),
     GenericTestFileParse(path=''),
@@ -250,8 +258,8 @@ sample_values = [
     PartialParsingFailedBecauseProfileChange(),
     PartialParsingFailedBecauseNewProjectDependency(),
     PartialParsingFailedBecauseHashChanged(),
-    PartialParsingDeletedMetric(''),
-    ParsedFileLoadFailed(path='', exc=Exception('')),
+    PartialParsingDeletedMetric(),
+    ParsedFileLoadFailed(path='', exc=''),
     PartialParseSaveFileNotFound(),
     StaticParserCausedJinjaRendering(path=''),
     UsingExperimentalParser(path=''),
@@ -274,7 +282,7 @@ sample_values = [
     PartialParsingDeletedExposure(unique_id=''),
     InvalidDisabledSourceInTestNode(msg=''),
     InvalidRefInTestNode(msg=''),
-    RunningOperationCaughtError(exc=Exception('')),
+    RunningOperationCaughtError(exc=''),
     RunningOperationUncaughtError(exc=Exception('')),
     DbtProjectError(),
     DbtProjectErrorException(exc=Exception('')),
@@ -313,7 +321,7 @@ sample_values = [
     ServingDocsAccessInfo(port=''),
     ServingDocsExitInfo(),
     SeedHeader(header=''),
-    SeedHeaderSeperator(len_header=0),
+    SeedHeaderSeparator(len_header=0),
     RunResultWarning(resource_type='', node_name='', path=''),
     RunResultFailure(resource_type='', node_name='', path=''),
     StatsLine(stats={'pass':0, 'warn':0, 'error':0, 'skip':0, 'total':0}),
@@ -324,37 +332,37 @@ sample_values = [
     FirstRunResultError(msg=''),
     AfterFirstRunResultError(msg=''),
     EndOfRunSummary(num_errors=0, num_warnings=0, keyboard_interrupt=False),
-    PrintStartLine(description='', index=0, total=0, report_node_data=MockNode()),
-    PrintHookStartLine(statement='', index=0, total=0, truncate=False, report_node_data=MockNode()),
-    PrintHookEndLine(statement='', status='', index=0, total=0, execution_time=0, truncate=False, report_node_data=MockNode()),
-    SkippingDetails(resource_type='', schema='', node_name='', index=0, total=0, report_node_data=MockNode()),
-    PrintErrorTestResult(name='', index=0, num_models=0, execution_time=0, report_node_data=MockNode()),
-    PrintPassTestResult(name='', index=0, num_models=0, execution_time=0, report_node_data=MockNode()),
-    PrintWarnTestResult(name='', index=0, num_models=0, execution_time=0, failures=[], report_node_data=MockNode()),
-    PrintFailureTestResult(name='', index=0, num_models=0, execution_time=0, failures=[], report_node_data=MockNode()),
+    PrintStartLine(description='', index=0, total=0, node_info={}),
+    PrintHookStartLine(statement='', index=0, total=0, node_info={}),
+    PrintHookEndLine(statement='', status='', index=0, total=0, execution_time=0, node_info={}),
+    SkippingDetails(resource_type='', schema='', node_name='', index=0, total=0, node_info={}),
+    PrintErrorTestResult(name='', index=0, num_models=0, execution_time=0, node_info={}),
+    PrintPassTestResult(name='', index=0, num_models=0, execution_time=0, node_info={}),
+    PrintWarnTestResult(name='', index=0, num_models=0, execution_time=0, failures=0, node_info={}),
+    PrintFailureTestResult(name='', index=0, num_models=0, execution_time=0, failures=0, node_info={}),
     PrintSkipBecauseError(schema='', relation='', index=0, total=0),
-    PrintModelErrorResultLine(description='', status='', index=0, total=0, execution_time=0, report_node_data=MockNode()),
-    PrintModelResultLine(description='', status='', index=0, total=0, execution_time=0, report_node_data=MockNode()),
+    PrintModelErrorResultLine(description='', status='', index=0, total=0, execution_time=0, node_info={}),
+    PrintModelResultLine(description='', status='', index=0, total=0, execution_time=0, node_info={}),
     PrintSnapshotErrorResultLine(status='',
                                  description='',
                                  cfg={},
                                  index=0,
                                  total=0,
                                  execution_time=0,
-                                 report_node_data=MockNode()),
-    PrintSnapshotResultLine(status='', description='', cfg={}, index=0, total=0, execution_time=0, report_node_data=MockNode()),
-    PrintSeedErrorResultLine(status='', index=0, total=0, execution_time=0, schema='', relation='', report_node_data=MockNode()),
-    PrintSeedResultLine(status='', index=0, total=0, execution_time=0, schema='', relation='', report_node_data=MockNode()),
-    PrintHookEndErrorLine(source_name='', table_name='', index=0, total=0, execution_time=0, report_node_data=MockNode()),
-    PrintHookEndErrorStaleLine(source_name='', table_name='', index=0, total=0, execution_time=0, report_node_data=MockNode()),
-    PrintHookEndWarnLine(source_name='', table_name='', index=0, total=0, execution_time=0, report_node_data=MockNode()),
-    PrintHookEndPassLine(source_name='', table_name='', index=0, total=0, execution_time=0, report_node_data=MockNode()),
+                                 node_info={}),
+    PrintSnapshotResultLine(status='', description='', cfg={}, index=0, total=0, execution_time=0, node_info={}),
+    PrintSeedErrorResultLine(status='', index=0, total=0, execution_time=0, schema='', relation='', node_info={}),
+    PrintSeedResultLine(status='', index=0, total=0, execution_time=0, schema='', relation='', node_info={}),
+    PrintHookEndErrorLine(source_name='', table_name='', index=0, total=0, execution_time=0, node_info={}),
+    PrintHookEndErrorStaleLine(source_name='', table_name='', index=0, total=0, execution_time=0, node_info={}),
+    PrintHookEndWarnLine(source_name='', table_name='', index=0, total=0, execution_time=0, node_info={}),
+    PrintHookEndPassLine(source_name='', table_name='', index=0, total=0, execution_time=0, node_info={}),
     PrintCancelLine(conn_name=''),
     DefaultSelector(name=''),
-    NodeStart(unique_id='', report_node_data=MockNode()),
-    NodeCompiling(unique_id='', report_node_data=MockNode()),
-    NodeExecuting(unique_id='', report_node_data=MockNode()),
-    NodeFinished(unique_id='', report_node_data=MockNode(), run_result=''),
+    NodeStart(unique_id='', node_info={}),
+    NodeCompiling(unique_id='', node_info={}),
+    NodeExecuting(unique_id='', node_info={}),
+    NodeFinished(unique_id='', node_info={}, run_result={}),
     QueryCancelationUnsupported(type=''),
     ConcurrencyLine(num_threads=0, target_name=''),
     StarterProjectPath(dir=''),
@@ -384,26 +392,26 @@ sample_values = [
     GeneralWarningMsg(msg='', log_fmt=''),
     GeneralWarningException(exc=Exception(''), log_fmt=''),
     PartialParsingProfileEnvVarsChanged(),
-    AdapterEventDebug('', '', ()),
-    AdapterEventInfo('', '', ()),
-    AdapterEventWarning('', '', ()),
-    AdapterEventError('', '', ()),
+    AdapterEventDebug(),
+    AdapterEventInfo(),
+    AdapterEventWarning(),
+    AdapterEventError(),
     PrintDebugStackTrace(),
-    MainReportArgs(Namespace()),
-    RegistryProgressMakingGETRequest(''),
+    MainReportArgs(args={}),
+    RegistryProgressMakingGETRequest(),
     DepsUTD(),
     PartialParsingNotEnabled(),
-    SQlRunnerException(Exception('')),
-    DropRelation(''),
+    SQlRunnerException(exc=Exception('')),
+    DropRelation(),
     PartialParsingProjectEnvVarsChanged(),
-    RegistryProgressGETResponse('', ''),
-    IntegrationTestDebug(''),
-    IntegrationTestInfo(''),
-    IntegrationTestWarn(''),
-    IntegrationTestError(''),
-    IntegrationTestException(''),
+    RegistryProgressGETResponse(),
+    IntegrationTestDebug(),
+    IntegrationTestInfo(),
+    IntegrationTestWarn(),
+    IntegrationTestError(),
+    IntegrationTestException(),
     EventBufferFull(),
-    UnitTestInfo('')
+    UnitTestInfo(),
 ]
 
 

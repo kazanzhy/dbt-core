@@ -1,9 +1,10 @@
-from abc import ABCMeta, abstractmethod, abstractproperty
-from dataclasses import dataclass
+from abc import ABCMeta
+from dataclasses import dataclass, field
+from dbt.events.serialization import dbtClassEventMixin
 from datetime import datetime
 import os
 import threading
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # These base types define the _required structure_ for the concrete event #
@@ -14,19 +15,6 @@ from typing import Any, Optional
 class Cache():
     # Events with this class will only be logged when the `--log-cache-events` flag is passed
     pass
-
-
-@dataclass
-class Node():
-    node_path: str
-    node_name: str
-    unique_id: str
-    resource_type: str
-    materialized: str
-    node_status: str
-    node_started_at: datetime
-    node_finished_at: Optional[datetime]
-    type: str = 'node_status'
 
 
 @dataclass
@@ -42,31 +30,28 @@ class ShowException():
 
 
 # TODO add exhaustiveness checking for subclasses
-# can't use ABCs with @dataclass because of https://github.com/python/mypy/issues/5374
 # top-level superclass for all events
-class Event(metaclass=ABCMeta):
+@dataclass
+class Event(dbtClassEventMixin, metaclass=ABCMeta):
     # fields that should be on all events with their default implementations
     log_version: int = 1
     ts: Optional[datetime] = None  # use getter for non-optional
     ts_rfc3339: Optional[str] = None  # use getter for non-optional
     pid: Optional[int] = None  # use getter for non-optional
-    node_info: Optional[Node]
 
     # four digit string code that uniquely identifies this type of event
     # uniqueness and valid characters are enforced by tests
-    @abstractproperty
+    @property
     @staticmethod
     def code() -> str:
         raise Exception("code() not implemented for event")
 
     # do not define this yourself. inherit it from one of the above level types.
-    @abstractmethod
     def level_tag(self) -> str:
         raise Exception("level_tag not implemented for Event")
 
     # Solely the human readable message. Timestamps and formatting will be added by the logger.
     # Must override yourself
-    @abstractmethod
     def message(self) -> str:
         raise Exception("msg not implemented for Event")
 
@@ -99,21 +84,6 @@ class Event(metaclass=ABCMeta):
         from dbt.events.functions import get_invocation_id
         return get_invocation_id()
 
-    # default dict factory for all events. can override on concrete classes.
-    @classmethod
-    def asdict(cls, data: list) -> dict:
-        d = dict()
-        for k, v in data:
-            # stringify all exceptions
-            if isinstance(v, Exception) or isinstance(v, BaseException):
-                d[k] = str(v)
-            # skip all binary data
-            elif isinstance(v, bytes):
-                continue
-            else:
-                d[k] = v
-        return d
-
 
 # in preparation for #3977
 class TestLevel(Event):
@@ -141,24 +111,6 @@ class ErrorLevel(Event):
         return "error"
 
 
-@dataclass  # type: ignore
-class NodeInfo(Event, metaclass=ABCMeta):
-    report_node_data: Any  # Union[ParsedModelNode, ...] TODO: resolve circular imports
-
-    def get_node_info(self):
-        node_info = Node(
-            node_path=self.report_node_data.path,
-            node_name=self.report_node_data.name,
-            unique_id=self.report_node_data.unique_id,
-            resource_type=self.report_node_data.resource_type.value,
-            materialized=self.report_node_data.config.get('materialized'),
-            node_status=str(self.report_node_data._event_status.get('node_status')),
-            node_started_at=self.report_node_data._event_status.get("started_at"),
-            node_finished_at=self.report_node_data._event_status.get("finished_at")
-        )
-        return node_info
-
-
 # prevents an event from going to the file
 class NoFile():
     pass
@@ -167,3 +119,8 @@ class NoFile():
 # prevents an event from going to stdout
 class NoStdOut():
     pass
+
+
+@dataclass
+class NodeInfo():
+    node_info: Dict[str, Any] = field(default_factory=dict)

@@ -14,7 +14,7 @@ from .types import (
 
 @dataclass
 class IntegrationTestInfo(InfoLevel, NoFile):
-    msg: str
+    msg: str = ''
     code: str = "T001"
 
     def message(self) -> str:
@@ -23,7 +23,7 @@ class IntegrationTestInfo(InfoLevel, NoFile):
 
 @dataclass
 class IntegrationTestDebug(DebugLevel, NoFile):
-    msg: str
+    msg: str = ''
     code: str = "T002"
 
     def message(self) -> str:
@@ -32,7 +32,7 @@ class IntegrationTestDebug(DebugLevel, NoFile):
 
 @dataclass
 class IntegrationTestWarn(WarnLevel, NoFile):
-    msg: str
+    msg: str = ''
     code: str = "T003"
 
     def message(self) -> str:
@@ -41,7 +41,7 @@ class IntegrationTestWarn(WarnLevel, NoFile):
 
 @dataclass
 class IntegrationTestError(ErrorLevel, NoFile):
-    msg: str
+    msg: str = ''
     code: str = "T004"
 
     def message(self) -> str:
@@ -50,7 +50,7 @@ class IntegrationTestError(ErrorLevel, NoFile):
 
 @dataclass
 class IntegrationTestException(ShowException, ErrorLevel, NoFile):
-    msg: str
+    msg: str = ''
     code: str = "T005"
 
     def message(self) -> str:
@@ -59,7 +59,7 @@ class IntegrationTestException(ShowException, ErrorLevel, NoFile):
 
 @dataclass
 class UnitTestInfo(InfoLevel, NoFile):
-    msg: str
+    msg: str = ''
     code: str = "T006"
 
     def message(self) -> str:

@@ -19,7 +19,6 @@ import os
 import uuid
 import threading
 from typing import Any, Callable, Dict, List, Optional, Union
-import dataclasses
 from collections import deque
 
 
@@ -138,25 +137,21 @@ def event_to_serializable_dict(
     ts_fn: Callable[[datetime], str]
 ) -> Dict[str, Any]:
     data = dict()
-    node_info = dict()
+    node_info: Dict[str, Any] = dict()
     log_line = dict()
     try:
-        log_line = dataclasses.asdict(e, dict_factory=type(e).asdict)
-    except AttributeError:
+        log_line = e.to_dict()
+    except AttributeError as exc:
         event_type = type(e).__name__
         raise Exception(  # TODO this may hang async threads
-            f"type {event_type} is not serializable to json."
-            f" First make sure that the call sites for {event_type} match the type hints"
-            f" and if they do, you can override the dataclass method `asdict` in {event_type} in"
-            " types.py to define your own serialization function to a dictionary of valid json"
-            " types"
+            f"type {event_type} is not serializable. {str(exc)}"
         )
 
     if isinstance(e, NodeInfo):
-        node_info = dataclasses.asdict(e.get_node_info())
+        node_info = e.node_info
 
     for field, value in log_line.items():  # type: ignore[attr-defined]
-        if field not in ["code", "report_node_data"]:
+        if field not in ["code", "node_info", "log_version", "ts", "ts_rfc3339", "pid"]:
             data[field] = value
 
     event_dict = {
@@ -315,7 +310,7 @@ def fire_event(e: Event) -> None:
     global EVENT_HISTORY
     if len(EVENT_HISTORY) == (flags.EVENT_BUFFER_SIZE - 1):
         EVENT_HISTORY.append(e)
-        fire_event(EventBufferFull())
+        EVENT_HISTORY.append(EventBufferFull())
     else:
         EVENT_HISTORY.append(e)
 

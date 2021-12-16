@@ -211,6 +211,20 @@ class ParsedNodeDefaults(ParsedNodeMandatory):
         write_file(full_path, payload)
         return full_path
 
+    @property
+    def node_info(self):
+        node_info = {
+            "node_path": self.path,
+            "node_name": self.name,
+            "unique_id": self.unique_id,
+            "resource_type": self.resource_type.value,
+            "materialized": self.config.get('materialized'),
+            "node_status": str(self._event_status.get('node_status')),
+            "node_started_at": self._event_status.get("started_at"),
+            "node_finished_at": self._event_status.get("finished_at")
+        }
+        return node_info
+
 
 T = TypeVar('T', bound='ParsedNode')
 
@@ -737,6 +751,19 @@ class ParsedSourceDefinition(
     @property
     def search_name(self):
         return f'{self.source_name}.{self.name}'
+
+    @property
+    def node_info(self):
+        node_info = {
+            "node_path": self.path,
+            "node_name": self.name,
+            "unique_id": self.unique_id,
+            "resource_type": self.resource_type.value,
+            "node_status": str(self._event_status.get('node_status')),
+            "node_started_at": self._event_status.get("started_at"),
+            "node_finished_at": self._event_status.get("finished_at")
+        }
+        return node_info
 
 
 @dataclass
