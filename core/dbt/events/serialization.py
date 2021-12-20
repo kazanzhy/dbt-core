@@ -31,10 +31,19 @@ class DateTimeSerialization(SerializationStrategy):
         )
 
 
+class BaseExceptionSerialization(SerializationStrategy):
+    def serialize(self, value):
+        return str(value)
+
+    def deserialize(self, value):
+        return (BaseException(value))
+
+
 class dbtClassEventMixin(DataClassDictMixin):
 
     class Config(MashBaseConfig):
         serialization_strategy = {
             Exception: ExceptionSerialization(),
             datetime: DateTimeSerialization(),
+            BaseException: ExceptionSerialization(),
         }

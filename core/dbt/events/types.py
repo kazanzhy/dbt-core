@@ -101,7 +101,7 @@ class MainKeyboardInterrupt(InfoLevel, NoFile):
 
 @dataclass
 class MainEncounteredError(ErrorLevel, NoFile):
-    e: str = ''
+    e: BaseException = BaseException()
     code: str = "Z002"
 
     def message(self) -> str:
@@ -2378,7 +2378,7 @@ class EventBufferFull(WarnLevel):
 if 1 == 0:
     MainReportVersion()
     MainKeyboardInterrupt()
-    MainEncounteredError(e=str(BaseException('')))
+    MainEncounteredError(e=BaseException(''))
     MainStackTrace()
     MainTrackingUserState()
     ParsingStart()
