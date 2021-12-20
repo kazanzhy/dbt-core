@@ -617,6 +617,12 @@ def _connection_exception_retry(fn, max_attempts: int, attempt: int = 0):
             raise ConnectionException('External connection exception occurred: ' + str(exc))
 
 
+# This is used to serialize the args in the run_results and in the logs.
+# We do this separately because there are a few fields that don't serialize,
+# i.e. PosixPath, WindowsPath, and types. It also includes args from both
+# cli args and flags, which is more complete than just the cli args.
+# If new args are added that are false by default (particularly in the
+# global options) they should be added to the 'default_false_keys' list.
 def args_to_dict(args):
     var_args = vars(args).copy()
     # update the args with the flags, which could also come from environment
@@ -633,7 +639,7 @@ def args_to_dict(args):
         # TODO: add more default_false_keys
         default_false_keys = (
             'debug', 'full_refresh', 'fail_fast', 'warn_error',
-            'single_threaded', 'log_cache_events',
+            'single_threaded', 'log_cache_events', 'store_failures',
             'use_experimental_parser',
         )
         if key in default_false_keys and var_args[key] is False:
