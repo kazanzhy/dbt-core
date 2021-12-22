@@ -1,6 +1,5 @@
 
 from colorama import Style
-from datetime import datetime
 import dbt.events.functions as this  # don't worry I hate it too.
 from dbt.events.base_types import NoStdOut, Event, NoFile, ShowException, NodeInfo, Cache
 from dbt.events.types import EventBufferFull, T_Event, MainReportVersion, EmptyLine
@@ -18,9 +17,11 @@ from logging.handlers import RotatingFileHandler
 import os
 import uuid
 import threading
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from collections import deque
 
+global LOG_VERSION
+LOG_VERSION = 2
 
 # create the global event history buffer with the default max size (10k)
 # python 3.7 doesn't support type hints on globals, but mypy requires them. hence the ignore.
@@ -134,7 +135,6 @@ def scrub_secrets(msg: str, secrets: List[str]) -> str:
 # the message may contain secrets which must be scrubbed at the usage site.
 def event_to_serializable_dict(
     e: T_Event,
-    ts_fn: Callable[[datetime], str]
 ) -> Dict[str, Any]:
     data = dict()
     node_info: Dict[str, Any] = dict()
@@ -156,8 +156,8 @@ def event_to_serializable_dict(
 
     event_dict = {
         'type': 'log_line',
-        'log_version': e.log_version,
-        'ts': ts_fn(e.get_ts()),
+        'log_version': LOG_VERSION,
+        'ts': e. get_ts_rfc3339(),
         'pid': e.get_pid(),
         'msg': e.message(),
         'level': e.level_tag(),
@@ -206,7 +206,7 @@ def create_json_log_line(e: T_Event) -> Optional[str]:
     if type(e) == EmptyLine:
         return None  # will not be sent to logger
     # using preformatted ts string instead of formatting it here to be extra careful about timezone
-    values = event_to_serializable_dict(e, lambda _: e.get_ts_rfc3339())
+    values = event_to_serializable_dict(e)
     raw_log_line = json.dumps(values, sort_keys=True)
     return scrub_secrets(raw_log_line, env_secrets())
 

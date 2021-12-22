@@ -154,11 +154,11 @@ def MockNode():
 
 
 sample_values = [
-    MainReportVersion(),
+    MainReportVersion(v=''),
     MainKeyboardInterrupt(),
     MainEncounteredError(e=BaseException('')),
-    MainStackTrace(),
-    MainTrackingUserState(),
+    MainStackTrace(stack_trace=''),
+    MainTrackingUserState(user_state=''),
     ParsingStart(),
     ParsingCompiling(),
     ParsingWritingManifest(),
@@ -241,7 +241,7 @@ sample_values = [
     TimingInfoCollected(),
     MergedFromState(nbr_merged=0, sample=[]),
     MissingProfileTarget(profile_name='', target_name=''),
-    ProfileLoadError(),
+    ProfileLoadError(exc=Exception()),
     ProfileNotFound(profile_name=''),
     InvalidVarsYAML(),
     GenericTestFileParse(path=''),
@@ -258,7 +258,7 @@ sample_values = [
     PartialParsingFailedBecauseProfileChange(),
     PartialParsingFailedBecauseNewProjectDependency(),
     PartialParsingFailedBecauseHashChanged(),
-    PartialParsingDeletedMetric(),
+    PartialParsingDeletedMetric(id=''),
     ParsedFileLoadFailed(path='', exc=''),
     PartialParseSaveFileNotFound(),
     StaticParserCausedJinjaRendering(path=''),
@@ -392,19 +392,19 @@ sample_values = [
     GeneralWarningMsg(msg='', log_fmt=''),
     GeneralWarningException(exc=Exception(''), log_fmt=''),
     PartialParsingProfileEnvVarsChanged(),
-    AdapterEventDebug(),
-    AdapterEventInfo(),
-    AdapterEventWarning(),
-    AdapterEventError(),
+    AdapterEventDebug(name='', base_msg='', args=()),
+    AdapterEventInfo(name='', base_msg='', args=()),
+    AdapterEventWarning(name='', base_msg='', args=()),
+    AdapterEventError(name='', base_msg='', args=()),
     PrintDebugStackTrace(),
     MainReportArgs(args={}),
-    RegistryProgressMakingGETRequest(),
+    RegistryProgressMakingGETRequest(url=''),
     DepsUTD(),
     PartialParsingNotEnabled(),
     SQlRunnerException(exc=Exception('')),
-    DropRelation(),
+    DropRelation(dropped=_ReferenceKey(database="", schema="", identifier="")),
     PartialParsingProjectEnvVarsChanged(),
-    RegistryProgressGETResponse(),
+    RegistryProgressGETResponse(url='', resp_code=1),
     IntegrationTestDebug(),
     IntegrationTestInfo(),
     IntegrationTestWarn(),
@@ -432,7 +432,7 @@ class TestEventJSONSerialization(TestCase):
 
         # if we have everything we need to test, try to serialize everything
         for event in sample_values:
-            d = event_to_serializable_dict(event, lambda _: event.get_ts_rfc3339())
+            d = event_to_serializable_dict(event)
             try:
                 json.dumps(d)
             except TypeError as e:

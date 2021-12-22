@@ -1,10 +1,10 @@
-from abc import ABCMeta
-from dataclasses import dataclass, field
+from abc import ABCMeta, abstractproperty, abstractmethod
+from dataclasses import dataclass
 from dbt.events.serialization import dbtClassEventMixin
 from datetime import datetime
 import os
 import threading
-from typing import Any, Optional, Dict
+from typing import Any, Dict
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # These base types define the _required structure_ for the concrete event #
@@ -31,49 +31,46 @@ class ShowException():
 
 # TODO add exhaustiveness checking for subclasses
 # top-level superclass for all events
-@dataclass
-class Event(dbtClassEventMixin, metaclass=ABCMeta):
-    # fields that should be on all events with their default implementations
-    log_version: int = 1
-    ts: Optional[datetime] = None  # use getter for non-optional
-    ts_rfc3339: Optional[str] = None  # use getter for non-optional
-    pid: Optional[int] = None  # use getter for non-optional
+class Event(metaclass=ABCMeta):
+    # Do not define fields with defaults here
 
     # four digit string code that uniquely identifies this type of event
     # uniqueness and valid characters are enforced by tests
-    @property
+    @abstractproperty
     @staticmethod
     def code() -> str:
         raise Exception("code() not implemented for event")
 
+    @abstractmethod
+    def to_dict(self):
+        raise Exception('to_dict not implemented for Event')
+
     # do not define this yourself. inherit it from one of the above level types.
+    @abstractmethod
     def level_tag(self) -> str:
         raise Exception("level_tag not implemented for Event")
 
     # Solely the human readable message. Timestamps and formatting will be added by the logger.
     # Must override yourself
+    @abstractmethod
     def message(self) -> str:
         raise Exception("msg not implemented for Event")
 
     # exactly one time stamp per concrete event
     def get_ts(self) -> datetime:
-        if not self.ts:
-            self.ts = datetime.utcnow()
-            self.ts_rfc3339 = self.ts.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-        return self.ts
+        ts = datetime.utcnow()
+        return ts
 
     # preformatted time stamp
     def get_ts_rfc3339(self) -> str:
-        if not self.ts_rfc3339:
-            # get_ts() creates the formatted string too so all time logic is centralized
-            self.get_ts()
-        return self.ts_rfc3339  # type: ignore
+        # get_ts() creates the formatted string too so all time logic is centralized
+        ts = self.get_ts()
+        ts_rfc3339 = ts.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        return ts_rfc3339
 
     # exactly one pid per concrete event
     def get_pid(self) -> int:
-        if not self.pid:
-            self.pid = os.getpid()
-        return self.pid
+        return os.getpid()
 
     # in theory threads can change so we don't cache them.
     def get_thread_name(self) -> str:
@@ -86,27 +83,32 @@ class Event(dbtClassEventMixin, metaclass=ABCMeta):
 
 
 # in preparation for #3977
-class TestLevel(Event):
+@dataclass  # type: ignore
+class TestLevel(dbtClassEventMixin, Event):
     def level_tag(self) -> str:
         return "test"
 
 
-class DebugLevel(Event):
+@dataclass  # type: ignore
+class DebugLevel(dbtClassEventMixin, Event):
     def level_tag(self) -> str:
         return "debug"
 
 
-class InfoLevel(Event):
+@dataclass  # type: ignore
+class InfoLevel(dbtClassEventMixin, Event):
     def level_tag(self) -> str:
         return "info"
 
 
-class WarnLevel(Event):
+@dataclass  # type: ignore
+class WarnLevel(dbtClassEventMixin, Event):
     def level_tag(self) -> str:
         return "warn"
 
 
-class ErrorLevel(Event):
+@dataclass  # type: ignore
+class ErrorLevel(dbtClassEventMixin, Event):
     def level_tag(self) -> str:
         return "error"
 
@@ -123,4 +125,4 @@ class NoStdOut():
 
 @dataclass
 class NodeInfo():
-    node_info: Dict[str, Any] = field(default_factory=dict)
+    node_info: Dict[str, Any]

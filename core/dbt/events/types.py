@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from dbt.adapters.reference_keys import _ReferenceKey
 from dbt import ui
 from dbt.events.base_types import (
@@ -6,6 +6,7 @@ from dbt.events.base_types import (
     NodeInfo, Cache
 )
 from dbt.events.format import format_fancy_output_line, pluralize
+from dbt.events.serialization import dbtClassEventMixin
 from dbt.node_types import NodeType
 from typing import Any, Dict, List, Optional, Set, Tuple, TypeVar
 
@@ -41,10 +42,10 @@ T_Event = TypeVar('T_Event', bound=Event)
 # https://github.com/python/mypy/issues/5374
 
 @dataclass  # type: ignore
-class AdapterEventBase(Event):
-    name: str = ''
-    base_msg: str = ''
-    args: Tuple[Any, ...] = field(default_factory=tuple)
+class AdapterEventBase(dbtClassEventMixin, Event):
+    name: str
+    base_msg: str
+    args: Tuple[Any, ...]
 
     # instead of having this inherit from one of the level classes
     def level_tag(self) -> str:
@@ -70,25 +71,21 @@ class AdapterEventBase(Event):
 @dataclass
 class AdapterEventDebug(DebugLevel, AdapterEventBase, ShowException):
     code: str = "E001"
-    pass
 
 
 @dataclass
 class AdapterEventInfo(InfoLevel, AdapterEventBase, ShowException):
     code: str = "E002"
-    pass
 
 
 @dataclass
 class AdapterEventWarning(WarnLevel, AdapterEventBase, ShowException):
     code: str = "E003"
-    pass
 
 
 @dataclass
 class AdapterEventError(ErrorLevel, AdapterEventBase, ShowException):
     code: str = "E004"
-    pass
 
 
 @dataclass
@@ -101,7 +98,7 @@ class MainKeyboardInterrupt(InfoLevel, NoFile):
 
 @dataclass
 class MainEncounteredError(ErrorLevel, NoFile):
-    e: BaseException = BaseException()
+    e: BaseException
     code: str = "Z002"
 
     def message(self) -> str:
@@ -110,7 +107,7 @@ class MainEncounteredError(ErrorLevel, NoFile):
 
 @dataclass
 class MainStackTrace(DebugLevel, NoFile):
-    stack_trace: str = ''
+    stack_trace: str
     code: str = "Z003"
 
     def message(self) -> str:
@@ -119,7 +116,7 @@ class MainStackTrace(DebugLevel, NoFile):
 
 @dataclass
 class MainReportVersion(InfoLevel):
-    v: str = ''  # could be VersionSpecifier instead if we resolved some circular imports
+    v: str  # could be VersionSpecifier instead if we resolved some circular imports
     code: str = "A001"
 
     def message(self):
@@ -128,7 +125,7 @@ class MainReportVersion(InfoLevel):
 
 @dataclass
 class MainReportArgs(DebugLevel):
-    args: Dict[str, str] = field(default_factory=dict)
+    args: Dict[str, str]
     code: str = "A002"
 
     def message(self):
@@ -137,7 +134,7 @@ class MainReportArgs(DebugLevel):
 
 @dataclass
 class MainTrackingUserState(DebugLevel):
-    user_state: str = ''
+    user_state: str
     code: str = "A003"
 
     def message(self):
@@ -218,7 +215,7 @@ class ManifestFlatGraphBuilt(InfoLevel):
 
 @dataclass
 class ReportPerformancePath(InfoLevel):
-    path: str = ''
+    path: str
     code: str = "I010"
 
     def message(self) -> str:
@@ -227,7 +224,7 @@ class ReportPerformancePath(InfoLevel):
 
 @dataclass
 class GitSparseCheckoutSubdirectory(DebugLevel):
-    subdir: str = ''
+    subdir: str
     code: str = "M001"
 
     def message(self) -> str:
@@ -236,7 +233,7 @@ class GitSparseCheckoutSubdirectory(DebugLevel):
 
 @dataclass
 class GitProgressCheckoutRevision(DebugLevel):
-    revision: str = ''
+    revision: str
     code: str = "M002"
 
     def message(self) -> str:
@@ -245,7 +242,7 @@ class GitProgressCheckoutRevision(DebugLevel):
 
 @dataclass
 class GitProgressUpdatingExistingDependency(DebugLevel):
-    dir: str = ''
+    dir: str
     code: str = "M003"
 
     def message(self) -> str:
@@ -254,7 +251,7 @@ class GitProgressUpdatingExistingDependency(DebugLevel):
 
 @dataclass
 class GitProgressPullingNewDependency(DebugLevel):
-    dir: str = ''
+    dir: str
     code: str = "M004"
 
     def message(self) -> str:
@@ -263,7 +260,7 @@ class GitProgressPullingNewDependency(DebugLevel):
 
 @dataclass
 class GitNothingToDo(DebugLevel):
-    sha: str = ''
+    sha: str
     code: str = "M005"
 
     def message(self) -> str:
@@ -272,8 +269,8 @@ class GitNothingToDo(DebugLevel):
 
 @dataclass
 class GitProgressUpdatedCheckoutRange(DebugLevel):
-    start_sha: str = ''
-    end_sha: str = ''
+    start_sha: str
+    end_sha: str
     code: str = "M006"
 
     def message(self) -> str:
@@ -282,7 +279,7 @@ class GitProgressUpdatedCheckoutRange(DebugLevel):
 
 @dataclass
 class GitProgressCheckedOutAt(DebugLevel):
-    end_sha: str = ''
+    end_sha: str
     code: str = "M007"
 
     def message(self) -> str:
@@ -291,7 +288,7 @@ class GitProgressCheckedOutAt(DebugLevel):
 
 @dataclass
 class RegistryProgressMakingGETRequest(DebugLevel):
-    url: str = ''
+    url: str
     code: str = "M008"
 
     def message(self) -> str:
@@ -300,8 +297,8 @@ class RegistryProgressMakingGETRequest(DebugLevel):
 
 @dataclass
 class RegistryProgressGETResponse(DebugLevel):
-    url: str = ''
-    resp_code: Optional[int] = None
+    url: str
+    resp_code: int
     code: str = "M009"
 
     def message(self) -> str:
@@ -311,7 +308,7 @@ class RegistryProgressGETResponse(DebugLevel):
 # TODO this was actually `logger.exception(...)` not `logger.error(...)`
 @dataclass
 class SystemErrorRetrievingModTime(ErrorLevel):
-    path: str = ''
+    path: str
     code: str = "Z004"
 
     def message(self) -> str:
@@ -320,9 +317,9 @@ class SystemErrorRetrievingModTime(ErrorLevel):
 
 @dataclass
 class SystemCouldNotWrite(DebugLevel):
-    path: str = ''
-    reason: str = ''
-    exc: Exception = Exception('')
+    path: str
+    reason: str
+    exc: Exception
     code: str = "Z005"
 
     def message(self) -> str:
@@ -334,7 +331,7 @@ class SystemCouldNotWrite(DebugLevel):
 
 @dataclass
 class SystemExecutingCmd(DebugLevel):
-    cmd: List[str] = field(default_factory=list)
+    cmd: List[str]
     code: str = "Z006"
 
     def message(self) -> str:
@@ -343,7 +340,7 @@ class SystemExecutingCmd(DebugLevel):
 
 @dataclass
 class SystemStdOutMsg(DebugLevel):
-    bmsg: bytes = b""
+    bmsg: bytes
     code: str = "Z007"
 
     def message(self) -> str:
@@ -352,7 +349,7 @@ class SystemStdOutMsg(DebugLevel):
 
 @dataclass
 class SystemStdErrMsg(DebugLevel):
-    bmsg: bytes = b""
+    bmsg: bytes
     code: str = "Z008"
 
     def message(self) -> str:
@@ -361,7 +358,7 @@ class SystemStdErrMsg(DebugLevel):
 
 @dataclass
 class SystemReportReturnCode(DebugLevel):
-    returncode: Optional[int] = None
+    returncode: int
     code: str = "Z009"
 
     def message(self) -> str:
@@ -370,9 +367,9 @@ class SystemReportReturnCode(DebugLevel):
 
 @dataclass
 class SelectorReportInvalidSelector(InfoLevel):
-    valid_selectors: str = ''
-    spec_method: str = ''
-    raw_spec: str = ''
+    valid_selectors: str
+    spec_method: str
+    raw_spec: str
     code: str = "M010"
 
     def message(self) -> str:
@@ -384,7 +381,7 @@ class SelectorReportInvalidSelector(InfoLevel):
 
 @dataclass
 class MacroEventInfo(InfoLevel):
-    msg: str = ''
+    msg: str
     code: str = "M011"
 
     def message(self) -> str:
@@ -393,7 +390,7 @@ class MacroEventInfo(InfoLevel):
 
 @dataclass
 class MacroEventDebug(DebugLevel):
-    msg: str = ''
+    msg: str
     code: str = "M012"
 
     def message(self) -> str:
@@ -402,8 +399,8 @@ class MacroEventDebug(DebugLevel):
 
 @dataclass
 class NewConnection(DebugLevel):
-    conn_type: str = ''
-    conn_name: str = ''
+    conn_type: str
+    conn_name: str
     code: str = "E005"
 
     def message(self) -> str:
@@ -412,7 +409,7 @@ class NewConnection(DebugLevel):
 
 @dataclass
 class ConnectionReused(DebugLevel):
-    conn_name: str = ''
+    conn_name: str
     code: str = "E006"
 
     def message(self) -> str:
@@ -421,7 +418,7 @@ class ConnectionReused(DebugLevel):
 
 @dataclass
 class ConnectionLeftOpen(DebugLevel):
-    conn_name: Optional[str] = None
+    conn_name: Optional[str]
     code: str = "E007"
 
     def message(self) -> str:
@@ -430,7 +427,7 @@ class ConnectionLeftOpen(DebugLevel):
 
 @dataclass
 class ConnectionClosed(DebugLevel):
-    conn_name: Optional[str] = None
+    conn_name: Optional[str]
     code: str = "E008"
 
     def message(self) -> str:
@@ -439,7 +436,7 @@ class ConnectionClosed(DebugLevel):
 
 @dataclass
 class RollbackFailed(ShowException, DebugLevel):
-    conn_name: Optional[str] = None
+    conn_name: Optional[str]
     code: str = "E009"
 
     def message(self) -> str:
@@ -449,7 +446,7 @@ class RollbackFailed(ShowException, DebugLevel):
 # TODO: can we combine this with ConnectionClosed?
 @dataclass
 class ConnectionClosed2(DebugLevel):
-    conn_name: Optional[str] = None
+    conn_name: Optional[str]
     code: str = "E010"
 
     def message(self) -> str:
@@ -459,7 +456,7 @@ class ConnectionClosed2(DebugLevel):
 # TODO: can we combine this with ConnectionLeftOpen?
 @dataclass
 class ConnectionLeftOpen2(DebugLevel):
-    conn_name: Optional[str] = None
+    conn_name: Optional[str]
     code: str = "E011"
 
     def message(self) -> str:
@@ -468,7 +465,7 @@ class ConnectionLeftOpen2(DebugLevel):
 
 @dataclass
 class Rollback(DebugLevel):
-    conn_name: Optional[str] = None
+    conn_name: Optional[str]
     code: str = "E012"
 
     def message(self) -> str:
@@ -477,9 +474,9 @@ class Rollback(DebugLevel):
 
 @dataclass
 class CacheMiss(DebugLevel):
-    conn_name: str = ''
-    database: Optional[str] = None
-    schema: str = ''
+    conn_name: str
+    database: Optional[str]
+    schema: str
     code: str = "E013"
 
     def message(self) -> str:
@@ -491,9 +488,9 @@ class CacheMiss(DebugLevel):
 
 @dataclass
 class ListRelations(DebugLevel):
-    database: Optional[str] = None
-    schema: str = ''
-    relations: List[_ReferenceKey] = field(default_factory=list)
+    database: Optional[str]
+    schema: str
+    relations: List[_ReferenceKey]
     code: str = "E014"
 
     def message(self) -> str:
@@ -502,8 +499,8 @@ class ListRelations(DebugLevel):
 
 @dataclass
 class ConnectionUsed(DebugLevel):
-    conn_type: str = ''
-    conn_name: Optional[str] = None
+    conn_type: str
+    conn_name: Optional[str]
     code: str = "E015"
 
     def message(self) -> str:
@@ -512,8 +509,8 @@ class ConnectionUsed(DebugLevel):
 
 @dataclass
 class SQLQuery(DebugLevel):
-    conn_name: Optional[str] = None
-    sql: str = ''
+    conn_name: Optional[str]
+    sql: str
     code: str = "E016"
 
     def message(self) -> str:
@@ -522,8 +519,8 @@ class SQLQuery(DebugLevel):
 
 @dataclass
 class SQLQueryStatus(DebugLevel):
-    status: str = ''
-    elapsed: Optional[float] = None
+    status: str
+    elapsed: Optional[float]
     code: str = "E017"
 
     def message(self) -> str:
@@ -532,7 +529,7 @@ class SQLQueryStatus(DebugLevel):
 
 @dataclass
 class SQLCommit(DebugLevel):
-    conn_name: str = ''
+    conn_name: str
     code: str = "E018"
 
     def message(self) -> str:
@@ -541,9 +538,9 @@ class SQLCommit(DebugLevel):
 
 @dataclass
 class ColTypeChange(DebugLevel):
-    orig_type: str = ''
-    new_type: str = ''
-    table: Optional[_ReferenceKey] = None
+    orig_type: str
+    new_type: str
+    table: _ReferenceKey
     code: str = "E019"
 
     def message(self) -> str:
@@ -552,7 +549,7 @@ class ColTypeChange(DebugLevel):
 
 @dataclass
 class SchemaCreation(DebugLevel):
-    relation: Optional[_ReferenceKey] = None
+    relation: _ReferenceKey
     code: str = "E020"
 
     def message(self) -> str:
@@ -561,7 +558,7 @@ class SchemaCreation(DebugLevel):
 
 @dataclass
 class SchemaDrop(DebugLevel):
-    relation: Optional[_ReferenceKey] = None
+    relation: _ReferenceKey
     code: str = "E021"
 
     def message(self) -> str:
@@ -572,8 +569,8 @@ class SchemaDrop(DebugLevel):
 # see: core/dbt/adapters/cache.py _add_link vs add_link
 @dataclass
 class UncachedRelation(DebugLevel, Cache):
-    dep_key: Optional[_ReferenceKey] = None
-    ref_key: Optional[_ReferenceKey] = None
+    dep_key: _ReferenceKey
+    ref_key: _ReferenceKey
     code: str = "E022"
 
     def message(self) -> str:
@@ -586,8 +583,8 @@ class UncachedRelation(DebugLevel, Cache):
 
 @dataclass
 class AddLink(DebugLevel, Cache):
-    dep_key: Optional[_ReferenceKey] = None
-    ref_key: Optional[_ReferenceKey] = None
+    dep_key: _ReferenceKey
+    ref_key: _ReferenceKey
     code: str = "E023"
 
     def message(self) -> str:
@@ -596,7 +593,7 @@ class AddLink(DebugLevel, Cache):
 
 @dataclass
 class AddRelation(DebugLevel, Cache):
-    relation: Optional[_ReferenceKey] = None
+    relation: _ReferenceKey
     code: str = "E024"
 
     def message(self) -> str:
@@ -605,7 +602,7 @@ class AddRelation(DebugLevel, Cache):
 
 @dataclass
 class DropMissingRelation(DebugLevel, Cache):
-    relation: Optional[_ReferenceKey] = None
+    relation: _ReferenceKey
     code: str = "E025"
 
     def message(self) -> str:
@@ -614,8 +611,8 @@ class DropMissingRelation(DebugLevel, Cache):
 
 @dataclass
 class DropCascade(DebugLevel, Cache):
-    dropped: Optional[_ReferenceKey] = None
-    consequences: Set[_ReferenceKey] = field(default_factory=set)
+    dropped: _ReferenceKey
+    consequences: Set[_ReferenceKey]
     code: str = "E026"
 
     def message(self) -> str:
@@ -624,7 +621,7 @@ class DropCascade(DebugLevel, Cache):
 
 @dataclass
 class DropRelation(DebugLevel, Cache):
-    dropped: Optional[_ReferenceKey] = None
+    dropped: _ReferenceKey
     code: str = "E027"
 
     def message(self) -> str:
@@ -633,9 +630,9 @@ class DropRelation(DebugLevel, Cache):
 
 @dataclass
 class UpdateReference(DebugLevel, Cache):
-    old_key: Optional[_ReferenceKey] = None
-    new_key: Optional[_ReferenceKey] = None
-    cached_key: Optional[_ReferenceKey] = None
+    old_key: _ReferenceKey
+    new_key: _ReferenceKey
+    cached_key: _ReferenceKey
     code: str = "E028"
 
     def message(self) -> str:
@@ -645,7 +642,7 @@ class UpdateReference(DebugLevel, Cache):
 
 @dataclass
 class TemporaryRelation(DebugLevel, Cache):
-    key: Optional[_ReferenceKey] = None
+    key: _ReferenceKey
     code: str = "E029"
 
     def message(self) -> str:
@@ -654,8 +651,8 @@ class TemporaryRelation(DebugLevel, Cache):
 
 @dataclass
 class RenameSchema(DebugLevel, Cache):
-    old_key: Optional[_ReferenceKey] = None
-    new_key: Optional[_ReferenceKey] = None
+    old_key: _ReferenceKey
+    new_key: _ReferenceKey
     code: str = "E030"
 
     def message(self) -> str:
@@ -665,7 +662,7 @@ class RenameSchema(DebugLevel, Cache):
 @dataclass
 class DumpBeforeAddGraph(DebugLevel, Cache):
     # large value. delay not necessary since every debug level message is logged anyway.
-    dump: Dict[str, List[str]] = field(default_factory=dict)
+    dump: Dict[str, List[str]]
     code: str = "E031"
 
     def message(self) -> str:
@@ -675,7 +672,7 @@ class DumpBeforeAddGraph(DebugLevel, Cache):
 @dataclass
 class DumpAfterAddGraph(DebugLevel, Cache):
     # large value. delay not necessary since every debug level message is logged anyway.
-    dump: Dict[str, List[str]] = field(default_factory=dict)
+    dump: Dict[str, List[str]]
     code: str = "E032"
 
     def message(self) -> str:
@@ -685,7 +682,7 @@ class DumpAfterAddGraph(DebugLevel, Cache):
 @dataclass
 class DumpBeforeRenameSchema(DebugLevel, Cache):
     # large value. delay not necessary since every debug level message is logged anyway.
-    dump: Dict[str, List[str]] = field(default_factory=dict)
+    dump: Dict[str, List[str]]
     code: str = "E033"
 
     def message(self) -> str:
@@ -695,7 +692,7 @@ class DumpBeforeRenameSchema(DebugLevel, Cache):
 @dataclass
 class DumpAfterRenameSchema(DebugLevel, Cache):
     # large value. delay not necessary since every debug level message is logged anyway.
-    dump: Dict[str, List[str]] = field(default_factory=dict)
+    dump: Dict[str, List[str]]
     code: str = "E034"
 
     def message(self) -> str:
@@ -704,7 +701,7 @@ class DumpAfterRenameSchema(DebugLevel, Cache):
 
 @dataclass
 class AdapterImportError(InfoLevel):
-    exc: str = ''
+    exc: Exception
     code: str = "E035"
 
     def message(self) -> str:
@@ -721,7 +718,7 @@ class PluginLoadError(ShowException, DebugLevel):
 
 @dataclass
 class NewConnectionOpening(DebugLevel):
-    connection_state: str = ''
+    connection_state: str
     code: str = "E037"
 
     def message(self) -> str:
@@ -738,8 +735,8 @@ class TimingInfoCollected(DebugLevel):
 
 @dataclass
 class MergedFromState(DebugLevel):
-    nbr_merged: Optional[int] = None
-    sample: List = field(default_factory=list)
+    nbr_merged: int
+    sample: List
     code: str = "A004"
 
     def message(self) -> str:
@@ -748,8 +745,8 @@ class MergedFromState(DebugLevel):
 
 @dataclass
 class MissingProfileTarget(InfoLevel):
-    profile_name: str = ''
-    target_name: str = ''
+    profile_name: str
+    target_name: str
     code: str = "A005"
 
     def message(self) -> str:
@@ -758,7 +755,7 @@ class MissingProfileTarget(InfoLevel):
 
 @dataclass
 class ProfileLoadError(ShowException, DebugLevel):
-    exc: Exception = Exception('')
+    exc: Exception
     code: str = "A006"
 
     def message(self) -> str:
@@ -767,7 +764,7 @@ class ProfileLoadError(ShowException, DebugLevel):
 
 @dataclass
 class ProfileNotFound(InfoLevel):
-    profile_name: Optional[str] = None
+    profile_name: Optional[str]
     code: str = "A007"
 
     def message(self) -> str:
@@ -784,7 +781,7 @@ class InvalidVarsYAML(ErrorLevel):
 
 @dataclass
 class GenericTestFileParse(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "I011"
 
     def message(self) -> str:
@@ -793,7 +790,7 @@ class GenericTestFileParse(DebugLevel):
 
 @dataclass
 class MacroFileParse(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "I012"
 
     def message(self) -> str:
@@ -810,7 +807,7 @@ class PartialParsingFullReparseBecauseOfError(InfoLevel):
 
 @dataclass
 class PartialParsingExceptionFile(DebugLevel):
-    file: str = ''
+    file: str
     code: str = "I014"
 
     def message(self) -> str:
@@ -819,7 +816,7 @@ class PartialParsingExceptionFile(DebugLevel):
 
 @dataclass
 class PartialParsingFile(DebugLevel):
-    file_dict: Dict = field(default_factory=dict)
+    file_dict: Dict
     code: str = "I015"
 
     def message(self) -> str:
@@ -828,7 +825,7 @@ class PartialParsingFile(DebugLevel):
 
 @dataclass
 class PartialParsingException(DebugLevel):
-    exc_info: Dict = field(default_factory=dict)
+    exc_info: Dict
     code: str = "I016"
 
     def message(self) -> str:
@@ -869,7 +866,7 @@ class PartialParsingProfileEnvVarsChanged(InfoLevel):
 
 @dataclass
 class PartialParsingDeletedMetric(DebugLevel):
-    id: str = ''
+    id: str
     code: str = "I021"
 
     def message(self) -> str:
@@ -878,7 +875,7 @@ class PartialParsingDeletedMetric(DebugLevel):
 
 @dataclass
 class ManifestWrongMetadataVersion(DebugLevel):
-    version: str = ''
+    version: str
     code: str = "I022"
 
     def message(self) -> str:
@@ -888,8 +885,8 @@ class ManifestWrongMetadataVersion(DebugLevel):
 
 @dataclass
 class PartialParsingVersionMismatch(InfoLevel):
-    saved_version: str = ''
-    current_version: str = ''
+    saved_version: str
+    current_version: str
     code: str = "I023"
 
     def message(self) -> str:
@@ -941,8 +938,8 @@ class PartialParsingNotEnabled(DebugLevel):
 
 @dataclass
 class ParsedFileLoadFailed(ShowException, DebugLevel):
-    path: str = ''
-    exc: Exception = Exception('')
+    path: str
+    exc: Exception
     code: str = "I029"
 
     def message(self) -> str:
@@ -959,7 +956,7 @@ class PartialParseSaveFileNotFound(InfoLevel):
 
 @dataclass
 class StaticParserCausedJinjaRendering(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "I031"
 
     def message(self) -> str:
@@ -970,7 +967,7 @@ class StaticParserCausedJinjaRendering(DebugLevel):
 #       the `TestLevel` logger once we implement it.  Some will probably stay `DebugLevel`.
 @dataclass
 class UsingExperimentalParser(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "I032"
 
     def message(self) -> str:
@@ -979,7 +976,7 @@ class UsingExperimentalParser(DebugLevel):
 
 @dataclass
 class SampleFullJinjaRendering(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "I033"
 
     def message(self) -> str:
@@ -988,7 +985,7 @@ class SampleFullJinjaRendering(DebugLevel):
 
 @dataclass
 class StaticParserFallbackJinjaRendering(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "I034"
 
     def message(self) -> str:
@@ -997,7 +994,7 @@ class StaticParserFallbackJinjaRendering(DebugLevel):
 
 @dataclass
 class StaticParsingMacroOverrideDetected(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "I035"
 
     def message(self) -> str:
@@ -1006,7 +1003,7 @@ class StaticParsingMacroOverrideDetected(DebugLevel):
 
 @dataclass
 class StaticParserSuccess(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "I036"
 
     def message(self) -> str:
@@ -1015,7 +1012,7 @@ class StaticParserSuccess(DebugLevel):
 
 @dataclass
 class StaticParserFailure(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "I037"
 
     def message(self) -> str:
@@ -1024,7 +1021,7 @@ class StaticParserFailure(DebugLevel):
 
 @dataclass
 class ExperimentalParserSuccess(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "I038"
 
     def message(self) -> str:
@@ -1033,7 +1030,7 @@ class ExperimentalParserSuccess(DebugLevel):
 
 @dataclass
 class ExperimentalParserFailure(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "I039"
 
     def message(self) -> str:
@@ -1042,9 +1039,9 @@ class ExperimentalParserFailure(DebugLevel):
 
 @dataclass
 class PartialParsingEnabled(DebugLevel):
-    deleted: Optional[int] = None
-    added: Optional[int] = None
-    changed: Optional[int] = None
+    deleted: int
+    added: int
+    changed: int
     code: str = "I040"
 
     def message(self) -> str:
@@ -1056,7 +1053,7 @@ class PartialParsingEnabled(DebugLevel):
 
 @dataclass
 class PartialParsingAddedFile(DebugLevel):
-    file_id: str = ''
+    file_id: str
     code: str = "I041"
 
     def message(self) -> str:
@@ -1065,7 +1062,7 @@ class PartialParsingAddedFile(DebugLevel):
 
 @dataclass
 class PartialParsingDeletedFile(DebugLevel):
-    file_id: str = ''
+    file_id: str
     code: str = "I042"
 
     def message(self) -> str:
@@ -1074,7 +1071,7 @@ class PartialParsingDeletedFile(DebugLevel):
 
 @dataclass
 class PartialParsingUpdatedFile(DebugLevel):
-    file_id: str = ''
+    file_id: str
     code: str = "I043"
 
     def message(self) -> str:
@@ -1083,7 +1080,7 @@ class PartialParsingUpdatedFile(DebugLevel):
 
 @dataclass
 class PartialParsingNodeMissingInSourceFile(DebugLevel):
-    source_file: str = ''
+    source_file: str
     code: str = "I044"
 
     def message(self) -> str:
@@ -1092,7 +1089,7 @@ class PartialParsingNodeMissingInSourceFile(DebugLevel):
 
 @dataclass
 class PartialParsingMissingNodes(DebugLevel):
-    file_id: str = ''
+    file_id: str
     code: str = "I045"
 
     def message(self) -> str:
@@ -1101,7 +1098,7 @@ class PartialParsingMissingNodes(DebugLevel):
 
 @dataclass
 class PartialParsingChildMapMissingUniqueID(DebugLevel):
-    unique_id: str = ''
+    unique_id: str
     code: str = "I046"
 
     def message(self) -> str:
@@ -1110,7 +1107,7 @@ class PartialParsingChildMapMissingUniqueID(DebugLevel):
 
 @dataclass
 class PartialParsingUpdateSchemaFile(DebugLevel):
-    file_id: str = ''
+    file_id: str
     code: str = "I047"
 
     def message(self) -> str:
@@ -1119,7 +1116,7 @@ class PartialParsingUpdateSchemaFile(DebugLevel):
 
 @dataclass
 class PartialParsingDeletedSource(DebugLevel):
-    unique_id: str = ''
+    unique_id: str
     code: str = "I048"
 
     def message(self) -> str:
@@ -1128,7 +1125,7 @@ class PartialParsingDeletedSource(DebugLevel):
 
 @dataclass
 class PartialParsingDeletedExposure(DebugLevel):
-    unique_id: str = ''
+    unique_id: str
     code: str = "I049"
 
     def message(self) -> str:
@@ -1137,7 +1134,7 @@ class PartialParsingDeletedExposure(DebugLevel):
 
 @dataclass
 class InvalidDisabledSourceInTestNode(WarnLevel):
-    msg: str = ''
+    msg: str
     code: str = "I050"
 
     def message(self) -> str:
@@ -1146,7 +1143,7 @@ class InvalidDisabledSourceInTestNode(WarnLevel):
 
 @dataclass
 class InvalidRefInTestNode(WarnLevel):
-    msg: str = ''
+    msg: str
     code: str = "I051"
 
     def message(self) -> str:
@@ -1155,7 +1152,7 @@ class InvalidRefInTestNode(WarnLevel):
 
 @dataclass
 class RunningOperationCaughtError(ErrorLevel):
-    exc: Exception = Exception('')
+    exc: Exception
     code: str = "Q001"
 
     def message(self) -> str:
@@ -1164,7 +1161,7 @@ class RunningOperationCaughtError(ErrorLevel):
 
 @dataclass
 class RunningOperationUncaughtError(ErrorLevel):
-    exc: Exception = Exception('')
+    exc: Exception
     code: str = "FF01"
 
     def message(self) -> str:
@@ -1181,7 +1178,7 @@ class DbtProjectError(ErrorLevel):
 
 @dataclass
 class DbtProjectErrorException(ErrorLevel):
-    exc: Exception = Exception('')
+    exc: Exception
     code: str = "A010"
 
     def message(self) -> str:
@@ -1198,7 +1195,7 @@ class DbtProfileError(ErrorLevel):
 
 @dataclass
 class DbtProfileErrorException(ErrorLevel):
-    exc: Exception = Exception('')
+    exc: Exception
     code: str = "A012"
 
     def message(self) -> str:
@@ -1215,7 +1212,7 @@ class ProfileListTitle(InfoLevel):
 
 @dataclass
 class ListSingleProfile(InfoLevel):
-    profile: str = ''
+    profile: str
     code: str = "A014"
 
     def message(self) -> str:
@@ -1245,7 +1242,7 @@ https://docs.getdbt.com/docs/configure-your-profile
 
 @dataclass
 class CatchableExceptionOnRun(ShowException, DebugLevel):
-    exc: Exception = Exception('')
+    exc: Exception
     code: str = "W002"
 
     def message(self) -> str:
@@ -1254,8 +1251,8 @@ class CatchableExceptionOnRun(ShowException, DebugLevel):
 
 @dataclass
 class InternalExceptionOnRun(DebugLevel):
-    build_path: str = ''
-    exc: Exception = Exception('')
+    build_path: str
+    exc: Exception
     code: str = "W003"
 
     def message(self) -> str:
@@ -1284,9 +1281,9 @@ class PrintDebugStackTrace(ShowException, DebugLevel):
 
 @dataclass
 class GenericExceptionOnRun(ErrorLevel):
-    build_path: Optional[str] = None
-    unique_id: str = ''
-    exc: Exception = Exception('')
+    build_path: Optional[str]
+    unique_id: str
+    exc: Exception
     code: str = "W004"
 
     def message(self) -> str:
@@ -1302,8 +1299,8 @@ class GenericExceptionOnRun(ErrorLevel):
 
 @dataclass
 class NodeConnectionReleaseError(ShowException, DebugLevel):
-    node_name: str = ''
-    exc: Exception = Exception('')
+    node_name: str
+    exc: Exception
     code: str = "W005"
 
     def message(self) -> str:
@@ -1313,7 +1310,7 @@ class NodeConnectionReleaseError(ShowException, DebugLevel):
 
 @dataclass
 class CheckCleanPath(InfoLevel, NoFile):
-    path: str = ''
+    path: str
     code: str = "Z012"
 
     def message(self) -> str:
@@ -1322,7 +1319,7 @@ class CheckCleanPath(InfoLevel, NoFile):
 
 @dataclass
 class ConfirmCleanPath(InfoLevel, NoFile):
-    path: str = ''
+    path: str
     code: str = "Z013"
 
     def message(self) -> str:
@@ -1331,7 +1328,7 @@ class ConfirmCleanPath(InfoLevel, NoFile):
 
 @dataclass
 class ProtectedCleanPath(InfoLevel, NoFile):
-    path: str = ''
+    path: str
     code: str = "Z014"
 
     def message(self) -> str:
@@ -1348,8 +1345,8 @@ class FinishedCleanPaths(InfoLevel, NoFile):
 
 @dataclass
 class OpenCommand(InfoLevel):
-    open_cmd: str = ''
-    profiles_dir: str = ''
+    open_cmd: str
+    profiles_dir: str
     code: str = "Z016"
 
     def message(self) -> str:
@@ -1374,7 +1371,7 @@ class DepsNoPackagesFound(InfoLevel):
 
 @dataclass
 class DepsStartPackageInstall(InfoLevel):
-    package_name: str = ''
+    package_name: str
     code: str = "M014"
 
     def message(self) -> str:
@@ -1383,7 +1380,7 @@ class DepsStartPackageInstall(InfoLevel):
 
 @dataclass
 class DepsInstallInfo(InfoLevel):
-    version_name: str = ''
+    version_name: str
     code: str = "M015"
 
     def message(self) -> str:
@@ -1392,7 +1389,7 @@ class DepsInstallInfo(InfoLevel):
 
 @dataclass
 class DepsUpdateAvailable(InfoLevel):
-    version_latest: str = ''
+    version_latest: str
     code: str = "M016"
 
     def message(self) -> str:
@@ -1409,7 +1406,7 @@ class DepsUTD(InfoLevel):
 
 @dataclass
 class DepsListSubdirectory(InfoLevel):
-    subdirectory: str = ''
+    subdirectory: str
     code: str = "M018"
 
     def message(self) -> str:
@@ -1418,7 +1415,7 @@ class DepsListSubdirectory(InfoLevel):
 
 @dataclass
 class DepsNotifyUpdatesAvailable(InfoLevel):
-    packages: List[str] = field(default_factory=list)
+    packages: List[str]
     code: str = "M019"
 
     def message(self) -> str:
@@ -1428,7 +1425,7 @@ class DepsNotifyUpdatesAvailable(InfoLevel):
 
 @dataclass
 class DatabaseErrorRunning(InfoLevel):
-    hook_type: str = ''
+    hook_type: str
     code: str = "E038"
 
     def message(self) -> str:
@@ -1445,8 +1442,8 @@ class EmptyLine(InfoLevel):
 
 @dataclass
 class HooksRunning(InfoLevel):
-    num_hooks: Optional[int] = None
-    hook_type: str = ''
+    num_hooks: int
+    hook_type: str
     code: str = "E039"
 
     def message(self) -> str:
@@ -1456,8 +1453,8 @@ class HooksRunning(InfoLevel):
 
 @dataclass
 class HookFinished(InfoLevel):
-    stat_line: str = ''
-    execution: str = ''
+    stat_line: str
+    execution: str
     code: str = "E040"
 
     def message(self) -> str:
@@ -1466,7 +1463,7 @@ class HookFinished(InfoLevel):
 
 @dataclass
 class WriteCatalogFailure(ErrorLevel):
-    num_exceptions: Optional[int] = None
+    num_exceptions: int
     code: str = "E041"
 
     def message(self) -> str:
@@ -1476,7 +1473,7 @@ class WriteCatalogFailure(ErrorLevel):
 
 @dataclass
 class CatalogWritten(InfoLevel):
-    path: str = ''
+    path: str
     code: str = "E042"
 
     def message(self) -> str:
@@ -1517,8 +1514,8 @@ class FreshnessCheckComplete(InfoLevel):
 
 @dataclass
 class ServingDocsPort(InfoLevel):
-    address: str = ''
-    port: Optional[int] = None
+    address: str
+    port: int
     code: str = "Z018"
 
     def message(self) -> str:
@@ -1527,7 +1524,7 @@ class ServingDocsPort(InfoLevel):
 
 @dataclass
 class ServingDocsAccessInfo(InfoLevel):
-    port: str = ''
+    port: str
     code: str = "Z019"
 
     def message(self) -> str:
@@ -1544,7 +1541,7 @@ class ServingDocsExitInfo(InfoLevel):
 
 @dataclass
 class SeedHeader(InfoLevel):
-    header: str = ''
+    header: str
     code: str = "Q004"
 
     def message(self) -> str:
@@ -1553,7 +1550,7 @@ class SeedHeader(InfoLevel):
 
 @dataclass
 class SeedHeaderSeparator(InfoLevel):
-    len_header: int = 0
+    len_header: int
     code: str = "Q005"
 
     def message(self) -> str:
@@ -1562,9 +1559,9 @@ class SeedHeaderSeparator(InfoLevel):
 
 @dataclass
 class RunResultWarning(WarnLevel):
-    resource_type: str = ''
-    node_name: str = ''
-    path: str = ''
+    resource_type: str
+    node_name: str
+    path: str
     code: str = "Z021"
 
     def message(self) -> str:
@@ -1574,9 +1571,9 @@ class RunResultWarning(WarnLevel):
 
 @dataclass
 class RunResultFailure(ErrorLevel):
-    resource_type: str = ''
-    node_name: str = ''
-    path: str = ''
+    resource_type: str
+    node_name: str
+    path: str
     code: str = "Z022"
 
     def message(self) -> str:
@@ -1586,7 +1583,7 @@ class RunResultFailure(ErrorLevel):
 
 @dataclass
 class StatsLine(InfoLevel):
-    stats: Dict = field(default_factory=dict)
+    stats: Dict
     code: str = "Z023"
 
     def message(self) -> str:
@@ -1596,7 +1593,7 @@ class StatsLine(InfoLevel):
 
 @dataclass
 class RunResultError(ErrorLevel):
-    msg: str = ''
+    msg: str
     code: str = "Z024"
 
     def message(self) -> str:
@@ -1605,7 +1602,7 @@ class RunResultError(ErrorLevel):
 
 @dataclass
 class RunResultErrorNoMessage(ErrorLevel):
-    status: str = ''
+    status: str
     code: str = "Z025"
 
     def message(self) -> str:
@@ -1614,7 +1611,7 @@ class RunResultErrorNoMessage(ErrorLevel):
 
 @dataclass
 class SQLCompiledPath(InfoLevel):
-    path: str = ''
+    path: str
     code: str = "Z026"
 
     def message(self) -> str:
@@ -1623,7 +1620,7 @@ class SQLCompiledPath(InfoLevel):
 
 @dataclass
 class SQlRunnerException(ShowException, DebugLevel):
-    exc: Exception = Exception('')
+    exc: Exception
     code: str = "Q006"
 
     def message(self) -> str:
@@ -1632,7 +1629,7 @@ class SQlRunnerException(ShowException, DebugLevel):
 
 @dataclass
 class CheckNodeTestFailure(InfoLevel):
-    relation_name: str = ''
+    relation_name: str
     code: str = "Z027"
 
     def message(self) -> str:
@@ -1643,7 +1640,7 @@ class CheckNodeTestFailure(InfoLevel):
 
 @dataclass
 class FirstRunResultError(ErrorLevel):
-    msg: str = ''
+    msg: str
     code: str = "Z028"
 
     def message(self) -> str:
@@ -1652,7 +1649,7 @@ class FirstRunResultError(ErrorLevel):
 
 @dataclass
 class AfterFirstRunResultError(ErrorLevel):
-    msg: str = ''
+    msg: str
     code: str = "Z029"
 
     def message(self) -> str:
@@ -1661,9 +1658,9 @@ class AfterFirstRunResultError(ErrorLevel):
 
 @dataclass
 class EndOfRunSummary(InfoLevel):
-    num_errors: int = 0
-    num_warnings: int = 0
-    keyboard_interrupt: bool = False
+    num_errors: int
+    num_warnings: int
+    keyboard_interrupt: bool
     code: str = "Z030"
 
     def message(self) -> str:
@@ -1683,9 +1680,9 @@ class EndOfRunSummary(InfoLevel):
 
 @dataclass
 class PrintStartLine(InfoLevel, NodeInfo):
-    description: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
+    description: str
+    index: int
+    total: int
     code: str = "Q033"
 
     def message(self) -> str:
@@ -1700,9 +1697,9 @@ class PrintStartLine(InfoLevel, NodeInfo):
 
 @dataclass
 class PrintHookStartLine(InfoLevel, NodeInfo):
-    statement: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
+    statement: str
+    index: int
+    total: int
     code: str = "Q032"
 
     def message(self) -> str:
@@ -1716,11 +1713,11 @@ class PrintHookStartLine(InfoLevel, NodeInfo):
 
 @dataclass
 class PrintHookEndLine(InfoLevel, NodeInfo):
-    statement: str = ''
-    status: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
-    execution_time: Optional[int] = None
+    statement: str
+    status: str
+    index: int
+    total: int
+    execution_time: int
     code: str = "Q007"
 
     def message(self) -> str:
@@ -1735,11 +1732,11 @@ class PrintHookEndLine(InfoLevel, NodeInfo):
 
 @dataclass
 class SkippingDetails(InfoLevel, NodeInfo):
-    resource_type: str = ''
-    schema: str = ''
-    node_name: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
+    resource_type: str
+    schema: str
+    node_name: str
+    index: int
+    total: int
     code: str = "Q034"
 
     def message(self) -> str:
@@ -1755,10 +1752,10 @@ class SkippingDetails(InfoLevel, NodeInfo):
 
 @dataclass
 class PrintErrorTestResult(ErrorLevel, NodeInfo):
-    name: str = ''
-    index: Optional[int] = None
-    num_models: Optional[int] = None
-    execution_time: Optional[int] = None
+    name: str
+    index: int
+    num_models: int
+    execution_time: int
     code: str = "Q008"
 
     def message(self) -> str:
@@ -1773,10 +1770,10 @@ class PrintErrorTestResult(ErrorLevel, NodeInfo):
 
 @dataclass
 class PrintPassTestResult(InfoLevel, NodeInfo):
-    name: str = ''
-    index: Optional[int] = None
-    num_models: Optional[int] = None
-    execution_time: Optional[int] = None
+    name: str
+    index: int
+    num_models: int
+    execution_time: int
     code: str = "Q009"
 
     def message(self) -> str:
@@ -1791,11 +1788,11 @@ class PrintPassTestResult(InfoLevel, NodeInfo):
 
 @dataclass
 class PrintWarnTestResult(WarnLevel, NodeInfo):
-    name: str = ''
-    index: Optional[int] = None
-    num_models: Optional[int] = None
-    execution_time: Optional[int] = None
-    failures: Optional[int] = None
+    name: str
+    index: int
+    num_models: int
+    execution_time: int
+    failures: int
     code: str = "Q010"
 
     def message(self) -> str:
@@ -1810,11 +1807,11 @@ class PrintWarnTestResult(WarnLevel, NodeInfo):
 
 @dataclass
 class PrintFailureTestResult(ErrorLevel, NodeInfo):
-    name: str = ''
-    index: Optional[int] = None
-    num_models: Optional[int] = None
-    execution_time: Optional[int] = None
-    failures: Optional[int] = None
+    name: str
+    index: int
+    num_models: int
+    execution_time: int
+    failures: int
     code: str = "Q011"
 
     def message(self) -> str:
@@ -1829,10 +1826,10 @@ class PrintFailureTestResult(ErrorLevel, NodeInfo):
 
 @dataclass
 class PrintSkipBecauseError(ErrorLevel):
-    schema: str = ''
-    relation: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
+    schema: str
+    relation: str
+    index: int
+    total: int
     code: str = "Z034"
 
     def message(self) -> str:
@@ -1845,11 +1842,11 @@ class PrintSkipBecauseError(ErrorLevel):
 
 @dataclass
 class PrintModelErrorResultLine(ErrorLevel, NodeInfo):
-    description: str = ''
-    status: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
-    execution_time: Optional[int] = None
+    description: str
+    status: str
+    index: int
+    total: int
+    execution_time: int
     code: str = "Q035"
 
     def message(self) -> str:
@@ -1864,11 +1861,11 @@ class PrintModelErrorResultLine(ErrorLevel, NodeInfo):
 
 @dataclass
 class PrintModelResultLine(InfoLevel, NodeInfo):
-    description: str = ''
-    status: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
-    execution_time: Optional[int] = None
+    description: str
+    status: str
+    index: int
+    total: int
+    execution_time: int
     code: str = "Q012"
 
     def message(self) -> str:
@@ -1883,12 +1880,12 @@ class PrintModelResultLine(InfoLevel, NodeInfo):
 
 @dataclass
 class PrintSnapshotErrorResultLine(ErrorLevel, NodeInfo):
-    status: str = ''
-    description: str = ''
-    cfg: Dict[str, Any] = field(default_factory=dict)
-    index: Optional[int] = None
-    total: Optional[int] = None
-    execution_time: Optional[int] = None
+    status: str
+    description: str
+    cfg: Dict[str, Any]
+    index: int
+    total: int
+    execution_time: int
     code: str = "Q013"
 
     def message(self) -> str:
@@ -1903,12 +1900,12 @@ class PrintSnapshotErrorResultLine(ErrorLevel, NodeInfo):
 
 @dataclass
 class PrintSnapshotResultLine(InfoLevel, NodeInfo):
-    status: str = ''
-    description: str = ''
-    cfg: Dict[str, Any] = field(default_factory=dict)
-    index: Optional[int] = None
-    total: Optional[int] = None
-    execution_time: Optional[int] = None
+    status: str
+    description: str
+    cfg: Dict[str, Any]
+    index: int
+    total: int
+    execution_time: int
     code: str = "Q014"
 
     def message(self) -> str:
@@ -1923,12 +1920,12 @@ class PrintSnapshotResultLine(InfoLevel, NodeInfo):
 
 @dataclass
 class PrintSeedErrorResultLine(ErrorLevel, NodeInfo):
-    status: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
-    execution_time: Optional[int] = None
-    schema: str = ''
-    relation: str = ''
+    status: str
+    index: int
+    total: int
+    execution_time: int
+    schema: str
+    relation: str
     code: str = "Q015"
 
     def message(self) -> str:
@@ -1943,12 +1940,12 @@ class PrintSeedErrorResultLine(ErrorLevel, NodeInfo):
 
 @dataclass
 class PrintSeedResultLine(InfoLevel, NodeInfo):
-    status: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
-    execution_time: Optional[int] = None
-    schema: str = ''
-    relation: str = ''
+    status: str
+    index: int
+    total: int
+    execution_time: int
+    schema: str
+    relation: str
     code: str = "Q016"
 
     def message(self) -> str:
@@ -1963,11 +1960,11 @@ class PrintSeedResultLine(InfoLevel, NodeInfo):
 
 @dataclass
 class PrintHookEndErrorLine(ErrorLevel, NodeInfo):
-    source_name: str = ''
-    table_name: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
-    execution_time: Optional[int] = None
+    source_name: str
+    table_name: str
+    index: int
+    total: int
+    execution_time: int
     code: str = "Q017"
 
     def message(self) -> str:
@@ -1982,11 +1979,11 @@ class PrintHookEndErrorLine(ErrorLevel, NodeInfo):
 
 @dataclass
 class PrintHookEndErrorStaleLine(ErrorLevel, NodeInfo):
-    source_name: str = ''
-    table_name: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
-    execution_time: Optional[int] = None
+    source_name: str
+    table_name: str
+    index: int
+    total: int
+    execution_time: int
     code: str = "Q018"
 
     def message(self) -> str:
@@ -2001,11 +1998,11 @@ class PrintHookEndErrorStaleLine(ErrorLevel, NodeInfo):
 
 @dataclass
 class PrintHookEndWarnLine(WarnLevel, NodeInfo):
-    source_name: str = ''
-    table_name: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
-    execution_time: Optional[int] = None
+    source_name: str
+    table_name: str
+    index: int
+    total: int
+    execution_time: int
     code: str = "Q019"
 
     def message(self) -> str:
@@ -2020,11 +2017,11 @@ class PrintHookEndWarnLine(WarnLevel, NodeInfo):
 
 @dataclass
 class PrintHookEndPassLine(InfoLevel, NodeInfo):
-    source_name: str = ''
-    table_name: str = ''
-    index: Optional[int] = None
-    total: Optional[int] = None
-    execution_time: Optional[int] = None
+    source_name: str
+    table_name: str
+    index: int
+    total: int
+    execution_time: int
     code: str = "Q020"
 
     def message(self) -> str:
@@ -2039,7 +2036,7 @@ class PrintHookEndPassLine(InfoLevel, NodeInfo):
 
 @dataclass
 class PrintCancelLine(ErrorLevel):
-    conn_name: str = ''
+    conn_name: str
     code: str = "Q021"
 
     def message(self) -> str:
@@ -2052,7 +2049,7 @@ class PrintCancelLine(ErrorLevel):
 
 @dataclass
 class DefaultSelector(InfoLevel):
-    name: str = ''
+    name: str
     code: str = "Q022"
 
     def message(self) -> str:
@@ -2061,7 +2058,7 @@ class DefaultSelector(InfoLevel):
 
 @dataclass
 class NodeStart(DebugLevel, NodeInfo):
-    unique_id: str = ''
+    unique_id: str
     code: str = "Q023"
 
     def message(self) -> str:
@@ -2070,8 +2067,8 @@ class NodeStart(DebugLevel, NodeInfo):
 
 @dataclass
 class NodeFinished(DebugLevel, NodeInfo):
-    unique_id: str = ''
-    run_result: Dict[str, Any] = field(default_factory=dict)
+    unique_id: str
+    run_result: Dict[str, Any]
     code: str = "Q024"
 
     def message(self) -> str:
@@ -2080,7 +2077,7 @@ class NodeFinished(DebugLevel, NodeInfo):
 
 @dataclass
 class QueryCancelationUnsupported(InfoLevel):
-    type: str = ''
+    type: str
     code: str = "Q025"
 
     def message(self) -> str:
@@ -2092,8 +2089,8 @@ class QueryCancelationUnsupported(InfoLevel):
 
 @dataclass
 class ConcurrencyLine(InfoLevel):
-    num_threads: Optional[int] = None
-    target_name: str = ''
+    num_threads: int
+    target_name: str
     code: str = "Q026"
 
     def message(self) -> str:
@@ -2102,7 +2099,7 @@ class ConcurrencyLine(InfoLevel):
 
 @dataclass
 class NodeCompiling(DebugLevel, NodeInfo):
-    unique_id: str = ''
+    unique_id: str
     code: str = "Q030"
 
     def message(self) -> str:
@@ -2111,7 +2108,7 @@ class NodeCompiling(DebugLevel, NodeInfo):
 
 @dataclass
 class NodeExecuting(DebugLevel, NodeInfo):
-    unique_id: str = ''
+    unique_id: str
     code: str = "Q031"
 
     def message(self) -> str:
@@ -2120,7 +2117,7 @@ class NodeExecuting(DebugLevel, NodeInfo):
 
 @dataclass
 class StarterProjectPath(DebugLevel):
-    dir: str = ''
+    dir: str
     code: str = "A017"
 
     def message(self) -> str:
@@ -2129,7 +2126,7 @@ class StarterProjectPath(DebugLevel):
 
 @dataclass
 class ConfigFolderDirectory(InfoLevel):
-    dir: str = ''
+    dir: str
     code: str = "A018"
 
     def message(self) -> str:
@@ -2138,7 +2135,7 @@ class ConfigFolderDirectory(InfoLevel):
 
 @dataclass
 class NoSampleProfileFound(InfoLevel):
-    adapter: str = ''
+    adapter: str
     code: str = "A019"
 
     def message(self) -> str:
@@ -2147,8 +2144,8 @@ class NoSampleProfileFound(InfoLevel):
 
 @dataclass
 class ProfileWrittenWithSample(InfoLevel):
-    name: str = ''
-    path: str = ''
+    name: str
+    path: str
     code: str = "A020"
 
     def message(self) -> str:
@@ -2159,8 +2156,8 @@ class ProfileWrittenWithSample(InfoLevel):
 
 @dataclass
 class ProfileWrittenWithTargetTemplateYAML(InfoLevel):
-    name: str = ''
-    path: str = ''
+    name: str
+    path: str
     code: str = "A021"
 
     def message(self) -> str:
@@ -2171,8 +2168,8 @@ class ProfileWrittenWithTargetTemplateYAML(InfoLevel):
 
 @dataclass
 class ProfileWrittenWithProjectTemplateYAML(InfoLevel):
-    name: str = ''
-    path: str = ''
+    name: str
+    path: str
     code: str = "A022"
 
     def message(self) -> str:
@@ -2199,7 +2196,7 @@ class InvalidProfileTemplateYAML(InfoLevel):
 
 @dataclass
 class ProjectNameAlreadyExists(InfoLevel):
-    name: str = ''
+    name: str
     code: str = "A025"
 
     def message(self) -> str:
@@ -2208,7 +2205,7 @@ class ProjectNameAlreadyExists(InfoLevel):
 
 @dataclass
 class GetAddendum(InfoLevel):
-    msg: str = ''
+    msg: str
     code: str = "A026"
 
     def message(self) -> str:
@@ -2217,7 +2214,7 @@ class GetAddendum(InfoLevel):
 
 @dataclass
 class DepsSetDownloadDirectory(DebugLevel):
-    path: str = ''
+    path: str
     code: str = "A027"
 
     def message(self) -> str:
@@ -2252,7 +2249,7 @@ class DepsSymlinkNotAvailable(DebugLevel):
 
 @dataclass
 class FoundStats(InfoLevel):
-    stat_line: str = ''
+    stat_line: str
     code: str = "W006"
 
     def message(self) -> str:
@@ -2262,7 +2259,7 @@ class FoundStats(InfoLevel):
 # TODO: should this have NodeInfo on it?
 @dataclass
 class CompilingNode(DebugLevel):
-    unique_id: str = ''
+    unique_id: str
     code: str = "Q027"
 
     def message(self) -> str:
@@ -2271,7 +2268,7 @@ class CompilingNode(DebugLevel):
 
 @dataclass
 class WritingInjectedSQLForNode(DebugLevel):
-    unique_id: str = ''
+    unique_id: str
     code: str = "Q028"
 
     def message(self) -> str:
@@ -2288,7 +2285,7 @@ class DisableTracking(WarnLevel):
 
 @dataclass
 class SendingEvent(DebugLevel):
-    kwargs: str = ''
+    kwargs: str
     code: str = "Z040"
 
     def message(self) -> str:
@@ -2329,8 +2326,8 @@ class TrackingInitializeFailure(ShowException, DebugLevel):
 
 @dataclass
 class RetryExternalCall(DebugLevel):
-    attempt: Optional[int] = None
-    max: Optional[int] = None
+    attempt: int
+    max: int
     code: str = "Z045"
 
     def message(self) -> str:
@@ -2339,8 +2336,8 @@ class RetryExternalCall(DebugLevel):
 
 @dataclass
 class GeneralWarningMsg(WarnLevel):
-    msg: str = ''
-    log_fmt: str = ''
+    msg: str
+    log_fmt: str
     code: str = "Z046"
 
     def message(self) -> str:
@@ -2351,8 +2348,8 @@ class GeneralWarningMsg(WarnLevel):
 
 @dataclass
 class GeneralWarningException(WarnLevel):
-    exc: Exception = Exception('')
-    log_fmt: str = ''
+    exc: Exception
+    log_fmt: str
     code: str = "Z047"
 
     def message(self) -> str:
@@ -2376,11 +2373,11 @@ class EventBufferFull(WarnLevel):
 #
 # TODO remove these lines once we run mypy everywhere.
 if 1 == 0:
-    MainReportVersion()
+    MainReportVersion(v='')
     MainKeyboardInterrupt()
     MainEncounteredError(e=BaseException(''))
-    MainStackTrace()
-    MainTrackingUserState()
+    MainStackTrace(stack_trace='')
+    MainTrackingUserState(user_state='')
     ParsingStart()
     ParsingCompiling()
     ParsingWritingManifest()
@@ -2452,11 +2449,11 @@ if 1 == 0:
         old_key=_ReferenceKey(database="", schema="", identifier=""),
         new_key=_ReferenceKey(database="", schema="", identifier="")
     )
-    DumpBeforeAddGraph()
-    DumpAfterAddGraph()
-    DumpBeforeRenameSchema()
-    DumpAfterRenameSchema()
-    AdapterImportError()
+    DumpBeforeAddGraph(dump={})
+    DumpAfterAddGraph(dump={})
+    DumpBeforeRenameSchema(dump={})
+    DumpAfterRenameSchema(dump={})
+    AdapterImportError(exc=Exception())
     PluginLoadError()
     SystemReportReturnCode(returncode=0)
     NewConnectionOpening(connection_state='')
@@ -2480,7 +2477,7 @@ if 1 == 0:
     PartialParsingFailedBecauseProfileChange()
     PartialParsingFailedBecauseNewProjectDependency()
     PartialParsingFailedBecauseHashChanged()
-    PartialParsingDeletedMetric()
+    PartialParsingDeletedMetric(id='')
     ParsedFileLoadFailed(path='', exc=Exception(''))
     PartialParseSaveFileNotFound()
     StaticParserCausedJinjaRendering(path='')
