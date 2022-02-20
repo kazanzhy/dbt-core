@@ -1,5 +1,11 @@
 ## dbt-core 1.1.0 (TBD)
 
+### Fixes
+- Fix misspellings and typos in docstrings ([#4545](https://github.com/dbt-labs/dbt-core/pull/4545))
+
+Contributors:
+- [@kazanzhy](https://github.com/kazanzhy) ([#4545](https://github.com/dbt-labs/dbt-core/pull/4545))
+
 ## dbt-core 1.0.3 (TBD)
 
 ### Fixes
@@ -72,7 +78,7 @@ Contributors:
 - Fix missing data on exposures in docs ([#4467](https://github.com/dbt-labs/dbt-core/issues/4467))
 
 Contributors:
-- [remoyson](https://github.com/remoyson) ([#4442](https://github.com/dbt-labs/dbt-core/pull/4442))
+- [@remoyson](https://github.com/remoyson) ([#4442](https://github.com/dbt-labs/dbt-core/pull/4442))
 
 ## dbt-core 1.0.0 (December 3, 2021)
 
